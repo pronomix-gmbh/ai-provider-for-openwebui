@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-PLUGIN_DIR_NAME="$(basename "${ROOT_DIR}")"
+PLUGIN_DIR_NAME="${PLUGIN_DIR_NAME:-ai-provider-for-open-webui}"
 DIST_DIR="${ROOT_DIR}/dist"
 TMP_DIR="$(mktemp -d)"
 STAGE_DIR="${TMP_DIR}/${PLUGIN_DIR_NAME}"
