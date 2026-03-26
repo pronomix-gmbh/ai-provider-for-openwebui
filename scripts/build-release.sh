@@ -43,7 +43,7 @@ rsync -a \
 (
 	cd "${STAGE_DIR}"
 	composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction --no-progress
-	rm -f composer.json composer.lock
+	rm -f composer.lock
 )
 
 ZIP_PATH="${DIST_DIR}/${PLUGIN_DIR_NAME}-${VERSION}.zip"
