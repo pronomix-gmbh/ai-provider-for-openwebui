@@ -10,6 +10,7 @@ declare( strict_types=1 );
 namespace OBenWeb\AiProviderForOpenWebUI\Metadata;
 
 use OBenWeb\AiProviderForOpenWebUI\Provider\OpenWebUIProvider;
+use OBenWeb\AiProviderForOpenWebUI\Util\OpenWebUIRequestOptions;
 use WordPress\AiClient\Messages\Enums\ModalityEnum;
 use WordPress\AiClient\Providers\ApiBasedImplementation\AbstractApiBasedModelMetadataDirectory;
 use WordPress\AiClient\Providers\Http\DTO\Request;
@@ -126,7 +127,8 @@ class OpenWebUIModelMetadataDirectory extends AbstractApiBasedModelMetadataDirec
 			$method,
 			OpenWebUIProvider::url( $path ),
 			$headers,
-			$data
+			$data,
+			OpenWebUIRequestOptions::with_defaults()
 		);
 	}
 }

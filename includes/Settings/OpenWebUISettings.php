@@ -22,12 +22,13 @@ use WordPress\AiClient\AiClient;
  */
 class OpenWebUISettings {
 
-	private const OPTION_GROUP = 'ai-provider-for-open-webui-settings';
-	private const OPTION_NAME  = 'ai_provider_for_openwebui_settings';
-	private const PAGE_SLUG    = 'ai-provider-for-open-webui';
-	private const SECTION_ID   = 'ai_provider_for_openwebui_main';
-	private const AJAX_ACTION  = 'ai_provider_for_openwebui_list_models';
-	private const NONCE_ACTION = 'ai_provider_for_openwebui_nonce';
+	private const OPTION_GROUP             = 'ai-provider-for-open-webui-settings';
+	private const OPTION_NAME              = 'ai_provider_for_openwebui_settings';
+	private const CONNECTOR_API_KEY_OPTION = 'connectors_ai_openwebui_api_key';
+	private const PAGE_SLUG                = 'ai-provider-for-open-webui';
+	private const SECTION_ID               = 'ai_provider_for_openwebui_main';
+	private const AJAX_ACTION              = 'ai_provider_for_openwebui_list_models';
+	private const NONCE_ACTION             = 'ai_provider_for_openwebui_nonce';
 
 	/**
 	 * Initializes the settings.
@@ -84,7 +85,7 @@ class OpenWebUISettings {
 
 		add_settings_field(
 			self::OPTION_NAME . '_model',
-			__( 'Available Models', 'ai-provider-for-open-webui' ),
+			__( 'Preferred Model', 'ai-provider-for-open-webui' ),
 			array( $this, 'render_available_models_field' ),
 			self::PAGE_SLUG,
 			self::SECTION_ID,
@@ -130,9 +131,17 @@ class OpenWebUISettings {
 			$api_key = sanitize_text_field( $api_key );
 		}
 
+		$model = isset( $value['model'] ) ? trim( (string) $value['model'] ) : '';
+		if ( '' !== $model ) {
+			$model = sanitize_text_field( $model );
+		}
+
+		self::sync_connector_api_key( $api_key );
+
 		return array(
 			'host'    => $host,
 			'api_key' => $api_key,
+			'model'   => $model,
 		);
 	}
 
@@ -147,30 +156,48 @@ class OpenWebUISettings {
 		}
 		?>
 
-		<div class="wrap" style="max-width: 50rem;">
+		<div class="wrap">
 			<h1><?php echo esc_html( get_admin_page_title() ); ?></h1>
-			<p>
-				<?php
-				echo esc_html__( 'Configure your Open WebUI URL and API key for model access. You can create an API key in Open WebUI under Settings > Account.', 'ai-provider-for-open-webui' );
-				?>
-			</p>
-			<p>
-				<?php
-				printf(
-					/* translators: 1: code tag, 2: closing code tag */
-					esc_html__( 'Default URL is %1$shttp://localhost:3000%2$s. The endpoint path %1$s/api%2$s is handled automatically by this plugin.', 'ai-provider-for-open-webui' ),
-					'<code>',
-					'</code>'
-				);
-				?>
-			</p>
-			<form action="options.php" method="post">
-				<?php
-				settings_fields( self::OPTION_GROUP );
-				do_settings_sections( self::PAGE_SLUG );
-				submit_button();
-				?>
-			</form>
+
+			<div class="ai-experiments ai-provider-for-open-webui-settings">
+				<form action="options.php" method="post" class="ai-provider-for-open-webui-settings__form">
+					<?php settings_fields( self::OPTION_GROUP ); ?>
+
+					<div class="ai-experiments__card ai-provider-for-open-webui-settings__card">
+						<div class="ai-experiments__card-heading">
+							<h2><?php esc_html_e( 'Connection Settings', 'ai-provider-for-open-webui' ); ?></h2>
+							<p class="description">
+								<?php
+								printf(
+									/* translators: 1: link to Connectors settings, 2: closing link tag */
+									esc_html__( 'Configure your Open WebUI URL. The API key is synchronized with %1$sSettings > Connectors%2$s and can be created in Open WebUI under Settings > Account.', 'ai-provider-for-open-webui' ),
+									'<a href="' . esc_url( admin_url( 'options-connectors.php' ) ) . '">',
+									'</a>'
+								);
+								?>
+							</p>
+							<p class="description">
+								<?php
+								printf(
+									/* translators: 1: code tag, 2: closing code tag */
+									esc_html__( 'Default URL is %1$shttp://localhost:3000%2$s. The endpoint path %1$s/api%2$s is handled automatically by this plugin.', 'ai-provider-for-open-webui' ),
+									'<code>',
+									'</code>'
+								);
+								?>
+							</p>
+						</div>
+
+						<div class="ai-provider-for-open-webui-settings__fields">
+							<?php do_settings_sections( self::PAGE_SLUG ); ?>
+						</div>
+
+						<div class="ai-provider-for-open-webui-settings__actions">
+							<?php submit_button(); ?>
+						</div>
+					</div>
+				</form>
+			</div>
 		</div>
 
 		<?php
@@ -229,7 +256,12 @@ class OpenWebUISettings {
 		/>
 		<p class="description">
 			<?php
-			echo esc_html__( 'Create the key in Open WebUI (Settings > Account). If AI Client credentials are configured separately, that takes precedence.', 'ai-provider-for-open-webui' );
+			printf(
+				/* translators: 1: link to Connectors settings, 2: closing link tag */
+				esc_html__( 'Create the key in Open WebUI (Settings > Account). This field is synchronized with %1$sSettings > Connectors%2$s.', 'ai-provider-for-open-webui' ),
+				'<a href="' . esc_url( admin_url( 'options-connectors.php' ) ) . '">',
+				'</a>'
+			);
 			?>
 		</p>
 
@@ -242,14 +274,29 @@ class OpenWebUISettings {
 	 * @since 1.0.0
 	 */
 	public function render_available_models_field(): void {
+		$settings       = self::get_settings();
+		$selected_model = isset( $settings['model'] ) ? (string) $settings['model'] : '';
 		?>
+
+		<input
+			type="text"
+			id="<?php echo esc_attr( self::OPTION_NAME . '-model' ); ?>"
+			name="<?php echo esc_attr( self::OPTION_NAME . '[model]' ); ?>"
+			class="regular-text"
+			list="ai-provider-for-open-webui-model-suggestions"
+			value="<?php echo esc_attr( $selected_model ); ?>"
+			placeholder="<?php esc_attr_e( 'for example llama3.1:8b', 'ai-provider-for-open-webui' ); ?>"
+			autocomplete="off"
+			spellcheck="false"
+		/>
+		<datalist id="ai-provider-for-open-webui-model-suggestions"></datalist>
 
 		<div id="openwebui-models-container">
 			<span id="openwebui-model-status"></span>
 		</div>
 		<p class="description">
 			<?php
-			echo esc_html__( 'Models are loaded from your Open WebUI instance.', 'ai-provider-for-open-webui' );
+			echo esc_html__( 'Enter the model ID to prioritize for text generation. Suggestions are loaded from your Open WebUI instance, but you can still enter the ID manually if loading fails.', 'ai-provider-for-open-webui' );
 			?>
 		</p>
 
@@ -268,12 +315,20 @@ class OpenWebUISettings {
 			return;
 		}
 
+		$settings   = self::get_settings();
 		$plugin_dir = AI_PROVIDER_FOR_OPENWEBUI_PLUGIN_DIR;
 		$asset_file = $plugin_dir . 'build/admin/settings.asset.php';
 		$asset      = file_exists( $asset_file ) ? require $asset_file : array(); // phpcs:ignore WordPressVIPMinimum.Files.IncludingFile.UsingVariable -- Asset file path is built from a known constant.
 
 		$dependencies = isset( $asset['dependencies'] ) ? $asset['dependencies'] : array();
 		$version      = isset( $asset['version'] ) ? $asset['version'] : false;
+
+		wp_enqueue_style(
+			'ai-provider-for-open-webui-settings-page',
+			plugins_url( 'build/admin/settings-page.css', $plugin_dir . 'plugin.php' ),
+			array(),
+			$version
+		);
 
 		wp_enqueue_script(
 			'ai-provider-for-open-webui-settings',
@@ -293,7 +348,10 @@ class OpenWebUISettings {
 			'ai-provider-for-open-webui-settings',
 			'aiProviderForOpenWebUISettings',
 			array(
-				'ajaxUrl' => esc_url( admin_url( 'admin-ajax.php' ) . '?action=' . self::AJAX_ACTION . '&_wpnonce=' . wp_create_nonce( self::NONCE_ACTION ) ),
+				'ajaxUrl'            => esc_url( admin_url( 'admin-ajax.php' ) . '?action=' . self::AJAX_ACTION . '&_wpnonce=' . wp_create_nonce( self::NONCE_ACTION ) ),
+				'modelFieldId'       => self::OPTION_NAME . '-model',
+				'modelSuggestionsId' => 'ai-provider-for-open-webui-model-suggestions',
+				'selectedModel'      => isset( $settings['model'] ) ? (string) $settings['model'] : '',
 			)
 		);
 	}
@@ -343,6 +401,65 @@ class OpenWebUISettings {
 	 * @return array<string, string> The settings.
 	 */
 	public static function get_settings(): array {
-		return (array) get_option( self::OPTION_NAME, array() );
+		$settings = (array) get_option( self::OPTION_NAME, array() );
+
+		$host = '';
+		if ( isset( $settings['host'] ) && '' !== (string) $settings['host'] ) {
+			$host = trim( (string) $settings['host'] );
+		}
+
+		$legacy_api_key = '';
+		if ( isset( $settings['api_key'] ) && '' !== (string) $settings['api_key'] ) {
+			$legacy_api_key = trim( (string) $settings['api_key'] );
+		}
+
+		$model = '';
+		if ( isset( $settings['model'] ) && '' !== (string) $settings['model'] ) {
+			$model = trim( (string) $settings['model'] );
+		}
+
+		$connector_api_key = self::get_connector_api_key();
+		if ( '' === $connector_api_key && '' !== $legacy_api_key ) {
+			self::sync_connector_api_key( $legacy_api_key );
+			$connector_api_key = $legacy_api_key;
+		}
+
+		return array(
+			'host'    => $host,
+			'api_key' => '' !== $connector_api_key ? $connector_api_key : $legacy_api_key,
+			'model'   => $model,
+		);
+	}
+
+	/**
+	 * Gets the Open WebUI API key from the connector option.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @return string The API key or an empty string.
+	 */
+	private static function get_connector_api_key(): string {
+		$value = get_option( self::CONNECTOR_API_KEY_OPTION, '' );
+		if ( ! is_string( $value ) ) {
+			return '';
+		}
+
+		return trim( $value );
+	}
+
+	/**
+	 * Synchronizes the plugin API key with the Connector API key option.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param string $api_key The sanitized API key.
+	 */
+	private static function sync_connector_api_key( string $api_key ): void {
+		$current_connector_key = self::get_connector_api_key();
+		if ( $current_connector_key === $api_key ) {
+			return;
+		}
+
+		update_option( self::CONNECTOR_API_KEY_OPTION, $api_key );
 	}
 }

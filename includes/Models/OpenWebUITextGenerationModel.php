@@ -11,6 +11,7 @@ namespace OBenWeb\AiProviderForOpenWebUI\Models;
 
 use OBenWeb\AiProviderForOpenWebUI\Provider\OpenWebUIProvider;
 use OBenWeb\AiProviderForOpenWebUI\Util\OpenWebUIPath;
+use OBenWeb\AiProviderForOpenWebUI\Util\OpenWebUIRequestOptions;
 use WordPress\AiClient\Providers\Http\DTO\Request;
 use WordPress\AiClient\Providers\Http\Enums\HttpMethodEnum;
 use WordPress\AiClient\Providers\OpenAiCompatibleImplementation\AbstractOpenAiCompatibleTextGenerationModel;
@@ -46,7 +47,7 @@ class OpenWebUITextGenerationModel extends AbstractOpenAiCompatibleTextGeneratio
 			OpenWebUIProvider::url( $path ),
 			$headers,
 			$data,
-			$this->getRequestOptions()
+			OpenWebUIRequestOptions::with_defaults( $this->getRequestOptions() )
 		);
 	}
 }

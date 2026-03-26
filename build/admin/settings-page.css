@@ -1,0 +1,76 @@
+.ai-experiments {
+	max-width: 50rem;
+}
+
+.ai-experiments,
+.ai-experiments__card {
+	display: flex;
+	flex-direction: column;
+	gap: 1.25rem;
+}
+
+.ai-experiments__card {
+	background: #fff;
+	border: 0.0625rem solid #ddd;
+	border-radius: 0.125rem;
+	padding: 1.25rem;
+}
+
+.ai-experiments__card-heading {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+}
+
+.ai-experiments__card-heading h2 {
+	margin: 0;
+}
+
+.ai-provider-for-open-webui-settings__card .description {
+	margin: 0;
+}
+
+.ai-provider-for-open-webui-settings__fields .form-table {
+	margin: 0;
+	border-top: 0.0625rem solid #f0f0f0;
+}
+
+.ai-provider-for-open-webui-settings__fields .form-table th {
+	padding-left: 0;
+	width: 12rem;
+}
+
+.ai-provider-for-open-webui-settings__fields .form-table td {
+	padding-right: 0;
+}
+
+.ai-provider-for-open-webui-settings__fields .regular-text {
+	width: 100%;
+	max-width: 28rem;
+}
+
+.ai-provider-for-open-webui-settings__actions .submit {
+	margin: 0;
+	padding: 0;
+}
+
+#openwebui-models-container {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+}
+
+#openwebui-models-container ul {
+	margin: 0;
+	padding-left: 1.25rem;
+}
+
+#openwebui-model-status.error {
+	color: #d63638;
+}
+
+@media (max-width: 782px) {
+	.ai-provider-for-open-webui-settings__fields .form-table th {
+		width: auto;
+	}
+}

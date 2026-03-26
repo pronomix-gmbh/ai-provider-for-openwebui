@@ -34,6 +34,7 @@ class Plugin {
 		add_action( 'init', array( $this, 'register_provider' ), 5 );
 		add_action( 'init', array( $this, 'register_fallback_auth' ), 15 );
 		add_action( 'init', array( $this, 'initialize_settings' ) );
+		add_filter( 'wpai_preferred_text_models', array( $this, 'filter_preferred_text_models' ) );
 		add_filter( 'plugin_action_links_' . plugin_basename( AI_PROVIDER_FOR_OPENWEBUI_PLUGIN_FILE ), array( $this, 'plugin_action_links' ) );
 		add_filter( 'http_request_host_is_external', array( $this, 'allow_localhost_requests' ), 10, 3 );
 		add_filter( 'http_allowed_safe_ports', array( $this, 'allow_openwebui_ports' ) );
@@ -170,6 +171,45 @@ class Plugin {
 	public function initialize_settings(): void {
 		$settings = new OpenWebUISettings();
 		$settings->init();
+	}
+
+	/**
+	 * Prioritizes the selected OpenWebUI model for text generation.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param array<int, mixed> $preferred_models Preferred model tuples from the AI plugin.
+	 * @return array<int, mixed> Updated model tuples.
+	 */
+	public function filter_preferred_text_models( array $preferred_models ): array {
+		$settings       = OpenWebUISettings::get_settings();
+		$selected_model = isset( $settings['model'] ) ? trim( (string) $settings['model'] ) : '';
+
+		if ( '' === $selected_model ) {
+			return $preferred_models;
+		}
+
+		$filtered_models = array(
+			array( 'openwebui', $selected_model ),
+		);
+
+		foreach ( $preferred_models as $preferred_model ) {
+			if ( ! is_array( $preferred_model ) || ! isset( $preferred_model[0], $preferred_model[1] ) ) {
+				$filtered_models[] = $preferred_model;
+				continue;
+			}
+
+			$provider_id = (string) $preferred_model[0];
+			$model_id    = (string) $preferred_model[1];
+
+			if ( 'openwebui' === $provider_id && $selected_model === $model_id ) {
+				continue;
+			}
+
+			$filtered_models[] = $preferred_model;
+		}
+
+		return $filtered_models;
 	}
 
 	/**
