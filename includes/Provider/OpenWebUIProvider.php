@@ -10,6 +10,8 @@ declare( strict_types=1 );
 namespace OBenWeb\AiProviderForOpenWebUI\Provider;
 
 use OBenWeb\AiProviderForOpenWebUI\Metadata\OpenWebUIModelMetadataDirectory;
+use OBenWeb\AiProviderForOpenWebUI\Models\OpenWebUIImageGenerationModel;
+use OBenWeb\AiProviderForOpenWebUI\Models\OpenWebUIMultimodalModel;
 use OBenWeb\AiProviderForOpenWebUI\Models\OpenWebUITextGenerationModel;
 use WordPress\AiClient\AiClient;
 use WordPress\AiClient\Common\Exception\RuntimeException;
@@ -49,7 +51,7 @@ class OpenWebUIProvider extends AbstractApiProvider {
 	 *
 	 * @since 1.0.0
 	 *
-	 * @param \WordPress\AiClient\Providers\Models\DTO\ModelMetadata $model_metadata    The model metadata.
+	 * @param \WordPress\AiClient\Providers\Models\DTO\ModelMetadata $model_metadata The model metadata.
 	 * @param \WordPress\AiClient\Providers\DTO\ProviderMetadata     $provider_metadata The provider metadata.
 	 * @return \WordPress\AiClient\Providers\Models\Contracts\ModelInterface The model instance.
 	 * @throws \WordPress\AiClient\Common\Exception\RuntimeException If the model capability is not supported.
@@ -58,11 +60,30 @@ class OpenWebUIProvider extends AbstractApiProvider {
 		ModelMetadata $model_metadata,
 		ProviderMetadata $provider_metadata
 	): ModelInterface {
+		$supports_text_generation  = false;
+		$supports_image_generation = false;
+
 		$capabilities = $model_metadata->getSupportedCapabilities();
 		foreach ( $capabilities as $capability ) {
 			if ( $capability->isTextGeneration() ) {
-				return new OpenWebUITextGenerationModel( $model_metadata, $provider_metadata );
+				$supports_text_generation = true;
 			}
+
+			if ( $capability->isImageGeneration() ) {
+				$supports_image_generation = true;
+			}
+		}
+
+		if ( $supports_text_generation && $supports_image_generation ) {
+			return new OpenWebUIMultimodalModel( $model_metadata, $provider_metadata );
+		}
+
+		if ( $supports_image_generation ) {
+			return new OpenWebUIImageGenerationModel( $model_metadata, $provider_metadata );
+		}
+
+		if ( $supports_text_generation ) {
+			return new OpenWebUITextGenerationModel( $model_metadata, $provider_metadata );
 		}
 
 		throw new RuntimeException(
@@ -87,9 +108,9 @@ class OpenWebUIProvider extends AbstractApiProvider {
 
 		if ( version_compare( AiClient::VERSION, '1.2.0', '>=' ) ) {
 			if ( function_exists( '__' ) ) {
-				$provider_meta[] = __( 'Text generation through Open WebUI via its API-compatible chat endpoint.', 'ai-provider-for-open-webui' );
+				$provider_meta[] = __( 'Text generation and image generation through Open WebUI API endpoints.', 'ai-provider-for-open-webui' );
 			} else {
-				$provider_meta[] = 'Text generation through Open WebUI via its API-compatible chat endpoint.';
+				$provider_meta[] = 'Text generation and image generation through Open WebUI API endpoints.';
 			}
 		}
 

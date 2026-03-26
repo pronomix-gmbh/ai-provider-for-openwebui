@@ -84,9 +84,9 @@ class OpenWebUISettings {
 		);
 
 		add_settings_field(
-			self::OPTION_NAME . '_model',
-			__( 'Preferred Model', 'ai-provider-for-open-webui' ),
-			array( $this, 'render_available_models_field' ),
+			self::OPTION_NAME . '_models',
+			__( 'Model', 'ai-provider-for-open-webui' ),
+			array( $this, 'render_model_field' ),
 			self::PAGE_SLUG,
 			self::SECTION_ID,
 			array( 'label_for' => self::OPTION_NAME . '-model' )
@@ -131,9 +131,26 @@ class OpenWebUISettings {
 			$api_key = sanitize_text_field( $api_key );
 		}
 
-		$model = isset( $value['model'] ) ? trim( (string) $value['model'] ) : '';
-		if ( '' !== $model ) {
-			$model = sanitize_text_field( $model );
+		$current_settings = (array) get_option( self::OPTION_NAME, array() );
+		$selected_model   = '';
+		if ( isset( $value['model'] ) ) {
+			$selected_model = self::sanitize_model_value( $value['model'] );
+		}
+
+		// Backward compatibility: migrate previous capability-specific model fields.
+		if ( '' === $selected_model ) {
+			foreach ( array( 'model_text', 'model_image', 'model_vision' ) as $legacy_key ) {
+				if ( isset( $value[ $legacy_key ] ) ) {
+					$selected_model = self::sanitize_model_value( $value[ $legacy_key ] );
+					if ( '' !== $selected_model ) {
+						break;
+					}
+				}
+			}
+		}
+
+		if ( '' === $selected_model ) {
+			$selected_model = isset( $current_settings['model'] ) ? self::sanitize_model_value( $current_settings['model'] ) : '';
 		}
 
 		self::sync_connector_api_key( $api_key );
@@ -141,8 +158,25 @@ class OpenWebUISettings {
 		return array(
 			'host'    => $host,
 			'api_key' => $api_key,
-			'model'   => $model,
+			'model'   => $selected_model,
 		);
+	}
+
+	/**
+	 * Sanitizes a model setting value.
+	 *
+	 * @since 1.1.0
+	 *
+	 * @param mixed $value Model value.
+	 * @return string Sanitized model value.
+	 */
+	private static function sanitize_model_value( $value ): string {
+		$model = trim( (string) $value );
+		if ( '' === $model ) {
+			return '';
+		}
+
+		return sanitize_text_field( $model );
 	}
 
 	/**
@@ -269,36 +303,41 @@ class OpenWebUISettings {
 	}
 
 	/**
-	 * Renders the available models list.
+	 * Renders the model field.
 	 *
-	 * @since 1.0.0
+	 * @since 1.1.0
 	 */
-	public function render_available_models_field(): void {
+	public function render_model_field(): void {
 		$settings       = self::get_settings();
 		$selected_model = isset( $settings['model'] ) ? (string) $settings['model'] : '';
 		?>
 
-		<input
-			type="text"
-			id="<?php echo esc_attr( self::OPTION_NAME . '-model' ); ?>"
-			name="<?php echo esc_attr( self::OPTION_NAME . '[model]' ); ?>"
-			class="regular-text"
-			list="ai-provider-for-open-webui-model-suggestions"
-			value="<?php echo esc_attr( $selected_model ); ?>"
-			placeholder="<?php esc_attr_e( 'for example llama3.1:8b', 'ai-provider-for-open-webui' ); ?>"
-			autocomplete="off"
-			spellcheck="false"
-		/>
-		<datalist id="ai-provider-for-open-webui-model-suggestions"></datalist>
+		<div class="ai-provider-for-open-webui-settings__model-field">
+			<p class="description">
+				<?php esc_html_e( 'Choose one Open WebUI model to use as preferred model for text, image, and vision requests.', 'ai-provider-for-open-webui' ); ?>
+			</p>
+
+			<p>
+				<label for="<?php echo esc_attr( self::OPTION_NAME . '-model' ); ?>"><strong><?php esc_html_e( 'Preferred model', 'ai-provider-for-open-webui' ); ?></strong></label><br />
+				<input
+					type="text"
+					id="<?php echo esc_attr( self::OPTION_NAME . '-model' ); ?>"
+					name="<?php echo esc_attr( self::OPTION_NAME . '[model]' ); ?>"
+					class="regular-text"
+					list="ai-provider-for-open-webui-model-suggestions-all"
+					value="<?php echo esc_attr( $selected_model ); ?>"
+					placeholder="<?php esc_attr_e( 'for example gpt-oss:20b', 'ai-provider-for-open-webui' ); ?>"
+					autocomplete="off"
+					spellcheck="false"
+				/>
+				<datalist id="ai-provider-for-open-webui-model-suggestions-all"></datalist>
+				<span class="description"><?php esc_html_e( 'If empty, normal AI plugin model discovery applies.', 'ai-provider-for-open-webui' ); ?></span>
+			</p>
+		</div>
 
 		<div id="openwebui-models-container">
 			<span id="openwebui-model-status"></span>
 		</div>
-		<p class="description">
-			<?php
-			echo esc_html__( 'Enter the model ID to prioritize for text generation. Suggestions are loaded from your Open WebUI instance, but you can still enter the ID manually if loading fails.', 'ai-provider-for-open-webui' );
-			?>
-		</p>
 
 		<?php
 	}
@@ -315,7 +354,6 @@ class OpenWebUISettings {
 			return;
 		}
 
-		$settings   = self::get_settings();
 		$plugin_dir = AI_PROVIDER_FOR_OPENWEBUI_PLUGIN_DIR;
 		$asset_file = $plugin_dir . 'build/admin/settings.asset.php';
 		$asset      = file_exists( $asset_file ) ? require $asset_file : array(); // phpcs:ignore WordPressVIPMinimum.Files.IncludingFile.UsingVariable -- Asset file path is built from a known constant.
@@ -348,10 +386,14 @@ class OpenWebUISettings {
 			'ai-provider-for-open-webui-settings',
 			'aiProviderForOpenWebUISettings',
 			array(
-				'ajaxUrl'            => esc_url( admin_url( 'admin-ajax.php' ) . '?action=' . self::AJAX_ACTION . '&_wpnonce=' . wp_create_nonce( self::NONCE_ACTION ) ),
-				'modelFieldId'       => self::OPTION_NAME . '-model',
-				'modelSuggestionsId' => 'ai-provider-for-open-webui-model-suggestions',
-				'selectedModel'      => isset( $settings['model'] ) ? (string) $settings['model'] : '',
+				'ajaxUrl'     => esc_url( admin_url( 'admin-ajax.php' ) . '?action=' . self::AJAX_ACTION . '&_wpnonce=' . wp_create_nonce( self::NONCE_ACTION ) ),
+				'modelFields' => array(
+					array(
+						'fieldId'            => self::OPTION_NAME . '-model',
+						'modelSuggestionsId' => 'ai-provider-for-open-webui-model-suggestions-all',
+						'capability'         => 'any',
+					),
+				),
 			)
 		);
 	}
@@ -413,9 +455,19 @@ class OpenWebUISettings {
 			$legacy_api_key = trim( (string) $settings['api_key'] );
 		}
 
-		$model = '';
+		$selected_model = '';
 		if ( isset( $settings['model'] ) && '' !== (string) $settings['model'] ) {
-			$model = trim( (string) $settings['model'] );
+			$selected_model = trim( (string) $settings['model'] );
+		}
+
+		// Backward compatibility: use previous capability-specific model values if needed.
+		if ( '' === $selected_model ) {
+			foreach ( array( 'model_text', 'model_image', 'model_vision' ) as $legacy_key ) {
+				if ( isset( $settings[ $legacy_key ] ) && '' !== (string) $settings[ $legacy_key ] ) {
+					$selected_model = trim( (string) $settings[ $legacy_key ] );
+					break;
+				}
+			}
 		}
 
 		$connector_api_key = self::get_connector_api_key();
@@ -427,7 +479,7 @@ class OpenWebUISettings {
 		return array(
 			'host'    => $host,
 			'api_key' => '' !== $connector_api_key ? $connector_api_key : $legacy_api_key,
-			'model'   => $model,
+			'model'   => $selected_model,
 		);
 	}
 

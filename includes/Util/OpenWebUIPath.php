@@ -38,4 +38,30 @@ class OpenWebUIPath {
 
 		return '/api/' . $path;
 	}
+
+	/**
+	 * Normalizes any incoming provider path to an OpenWebUI image generations path.
+	 *
+	 * Open WebUI exposes image generation under `/api/v1/images/generations`.
+	 *
+	 * @since 1.1.0
+	 *
+	 * @param string $path Incoming path from the model implementation.
+	 * @return string Normalized path.
+	 */
+	public static function normalize_for_image_generations( string $path ): string {
+		$path = ltrim( $path, '/' );
+		$path = ltrim( (string) preg_replace( '#^api/?#', '', $path ), '/' );
+		$path = ltrim( (string) preg_replace( '#^v1/?#', '', $path ), '/' );
+
+		if ( '' === $path ) {
+			$path = 'images/generations';
+		}
+
+		if ( 0 !== strpos( $path, 'images/' ) ) {
+			$path = 'images/generations';
+		}
+
+		return '/api/v1/' . $path;
+	}
 }

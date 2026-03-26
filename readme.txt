@@ -3,7 +3,7 @@ Contributors:      pronomix
 Tags:              ai, openwebui, llm, connector, api
 Requires at least: 6.7
 Tested up to:      6.9
-Stable tag:        1.1.0
+Stable tag:        1.2.0
 Requires PHP:      7.4
 License:           GPL-2.0-or-later
 License URI:       https://www.gnu.org/licenses/gpl-2.0.html
@@ -103,6 +103,12 @@ Yes:
 * `OPENWEBUI_API_KEY`
 
 == Changelog ==
+
+= 1.2.0 - 2026-03-26 =
+
+* Simplified configuration to a single preferred Open WebUI model
+* Added capability-based fallback handling for image and alt-text features
+* Improved Open WebUI model capability detection to avoid unsupported feature routing
 
 = 1.1.0 - 2026-03-26 =
 

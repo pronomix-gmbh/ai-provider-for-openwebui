@@ -49,6 +49,17 @@
 	max-width: 28rem;
 }
 
+.ai-provider-for-open-webui-settings__model-field,
+.ai-provider-for-open-webui-settings__model-routing {
+	display: grid;
+	gap: 0.875rem;
+}
+
+.ai-provider-for-open-webui-settings__model-field p,
+.ai-provider-for-open-webui-settings__model-routing p {
+	margin: 0;
+}
+
 .ai-provider-for-open-webui-settings__actions .submit {
 	margin: 0;
 	padding: 0;
