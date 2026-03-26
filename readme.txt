@@ -3,7 +3,7 @@ Contributors:      pronomix
 Tags:              ai, openwebui, llm, connector, api
 Requires at least: 6.7
 Tested up to:      6.9
-Stable tag:        1.0.0
+Stable tag:        1.1.0
 Requires PHP:      7.4
 License:           GPL-2.0-or-later
 License URI:       https://www.gnu.org/licenses/gpl-2.0.html
@@ -103,6 +103,12 @@ Yes:
 * `OPENWEBUI_API_KEY`
 
 == Changelog ==
+
+= 1.1.0 - 2026-03-26 =
+
+* Added preferred model selection with manual fallback input and model suggestions
+* Added default request timeout handling for Open WebUI requests (including OPENWEBUI_REQUEST_TIMEOUT override)
+* Improved Open WebUI settings page behavior and connector synchronization
 
 = 1.0.0 - 2026-03-26 =
 

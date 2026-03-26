@@ -6,7 +6,7 @@
  * Requires at least: 6.7
  * Requires PHP:      7.4
  * Requires Plugins:  ai
- * Version:           1.0.0
+ * Version:           1.1.0
  * Author:            Dirk Drutschmann, pronomiX GmbH
  * Author URI:        https://www.pronomix.de
  * License:           GPL-2.0-or-later
