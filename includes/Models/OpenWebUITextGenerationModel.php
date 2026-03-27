@@ -46,6 +46,33 @@ class OpenWebUITextGenerationModel extends AbstractOpenAiCompatibleTextGeneratio
 	private int $alt_text_max_length = 0;
 
 	/**
+	 * Whether excerpt constraints should be enforced for the current request.
+	 *
+	 * @since 1.2.2
+	 *
+	 * @var bool
+	 */
+	private bool $enforce_excerpt_constraints = false;
+
+	/**
+	 * Maximum number of words allowed for excerpt output.
+	 *
+	 * @since 1.2.2
+	 *
+	 * @var int
+	 */
+	private int $excerpt_max_words = 30;
+
+	/**
+	 * Requested candidate count for the current request.
+	 *
+	 * @since 1.2.2
+	 *
+	 * @var int
+	 */
+	private int $requested_candidate_count = 1;
+
+	/**
 	 * {@inheritDoc}
 	 *
 	 * @since 1.0.0
@@ -89,26 +116,44 @@ class OpenWebUITextGenerationModel extends AbstractOpenAiCompatibleTextGeneratio
 
 		$this->enforce_alt_text_constraints = false;
 		$this->alt_text_max_length          = 0;
+		$this->enforce_excerpt_constraints  = false;
+		$this->excerpt_max_words            = 30;
+		$this->requested_candidate_count    = 1;
 
 		if ( ! isset( $params['messages'] ) || ! is_array( $params['messages'] ) ) {
 			return $params;
 		}
 
-		$messages = $params['messages'];
+		$messages            = $params['messages'];
+		$config              = $this->getConfig();
+		$is_alt_text_request = $this->is_alt_text_request( $messages );
 
-		$locale = $this->get_current_locale();
-		if ( function_exists( 'apply_filters' ) ) {
-			$locale = (string) apply_filters( 'ai_provider_for_openwebui_response_locale', $locale );
+		$candidate_count = $config->getCandidateCount();
+		if ( is_int( $candidate_count ) && $candidate_count > 1 ) {
+			$this->requested_candidate_count = $candidate_count;
 		}
 
-		$config      = $this->getConfig();
+		$locale      = $this->get_effective_locale( $messages );
 		$instruction = OpenWebUIPromptConstraints::build_constraints_instruction(
 			$locale,
 			$config->getOutputMimeType(),
 			null !== $config->getOutputSchema()
 		);
 
-		if ( $this->is_alt_text_request( $messages ) ) {
+		$multi_candidate_instruction = OpenWebUIPromptConstraints::build_multi_candidate_instruction(
+			$this->requested_candidate_count
+		);
+		if (
+			'' !== trim( $multi_candidate_instruction )
+			&& ! $is_alt_text_request
+			&& ! $this->expects_structured_json_output( $config->getOutputMimeType() )
+		) {
+			$instruction = '' === trim( $instruction )
+				? $multi_candidate_instruction
+				: trim( $instruction . "\n" . $multi_candidate_instruction );
+		}
+
+		if ( $is_alt_text_request ) {
 			$this->enforce_alt_text_constraints = true;
 			$this->alt_text_max_length          = $this->get_alt_text_max_length();
 
@@ -121,6 +166,22 @@ class OpenWebUITextGenerationModel extends AbstractOpenAiCompatibleTextGeneratio
 				$instruction = '' === trim( $instruction )
 					? $alt_text_instruction
 					: trim( $instruction . "\n" . $alt_text_instruction );
+			}
+		}
+
+		if ( $this->is_excerpt_request( $messages ) ) {
+			$this->enforce_excerpt_constraints = true;
+			$this->excerpt_max_words           = $this->get_excerpt_max_words();
+
+			$excerpt_instruction = OpenWebUIPromptConstraints::build_excerpt_instruction(
+				$locale,
+				$this->excerpt_max_words
+			);
+
+			if ( '' !== trim( $excerpt_instruction ) ) {
+				$instruction = '' === trim( $instruction )
+					? $excerpt_instruction
+					: trim( $instruction . "\n" . $excerpt_instruction );
 			}
 		}
 
@@ -148,6 +209,34 @@ class OpenWebUITextGenerationModel extends AbstractOpenAiCompatibleTextGeneratio
 	}
 
 	/**
+	 * Resolves the locale for response constraints.
+	 *
+	 * @since 1.2.2
+	 *
+	 * @param array<int, mixed> $messages Prepared request messages.
+	 * @return string Locale, for example "de-DE", or empty string.
+	 */
+	private function get_effective_locale( array $messages ): string {
+		$locale          = $this->get_current_locale();
+		$detected_locale = $this->detect_locale_from_messages( $messages );
+
+		if ( '' !== $detected_locale ) {
+			$locale = $detected_locale;
+		}
+
+		if ( function_exists( 'apply_filters' ) ) {
+			$locale = (string) apply_filters(
+				'ai_provider_for_openwebui_response_locale',
+				$locale,
+				$messages,
+				$this->metadata()->getId()
+			);
+		}
+
+		return $this->sanitize_locale( $locale );
+	}
+
+	/**
 	 * Returns the current WordPress locale in BCP-47-like format.
 	 *
 	 * @since 1.1.0
@@ -163,6 +252,18 @@ class OpenWebUITextGenerationModel extends AbstractOpenAiCompatibleTextGeneratio
 			$locale = (string) get_locale();
 		}
 
+		return $this->sanitize_locale( $locale );
+	}
+
+	/**
+	 * Sanitizes a locale string.
+	 *
+	 * @since 1.2.2
+	 *
+	 * @param string $locale Raw locale.
+	 * @return string Sanitized locale, for example "de-DE", or empty string.
+	 */
+	private function sanitize_locale( string $locale ): string {
 		$locale = str_replace( '_', '-', trim( $locale ) );
 		$locale = preg_replace( '/[^A-Za-z0-9-]/', '', $locale );
 
@@ -171,6 +272,155 @@ class OpenWebUITextGenerationModel extends AbstractOpenAiCompatibleTextGeneratio
 		}
 
 		return $locale;
+	}
+
+	/**
+	 * Tries to infer a response locale from prompt content.
+	 *
+	 * This primarily detects German source content so the model keeps summaries
+	 * and other outputs in German, even if surrounding instructions are English.
+	 *
+	 * @since 1.2.2
+	 *
+	 * @param array<int, mixed> $messages Prepared request messages.
+	 * @return string Detected locale or empty string.
+	 */
+	private function detect_locale_from_messages( array $messages ): string {
+		$source_text = $this->extract_primary_source_text_for_locale_detection( $messages );
+		if ( '' === $source_text ) {
+			return '';
+		}
+
+		if ( $this->looks_like_german_text( $source_text ) ) {
+			return 'de-DE';
+		}
+
+		return '';
+	}
+
+	/**
+	 * Extracts source text for locale detection.
+	 *
+	 * If `<content>...</content>` blocks are present they are preferred, because
+	 * they contain the primary text for summarization and title generation.
+	 *
+	 * @since 1.2.2
+	 *
+	 * @param array<int, mixed> $messages Prepared request messages.
+	 * @return string Source text.
+	 */
+	private function extract_primary_source_text_for_locale_detection( array $messages ): string {
+		$user_text_chunks     = array();
+		$fallback_text_chunks = array();
+
+		foreach ( $messages as $message ) {
+			if ( ! is_array( $message ) ) {
+				continue;
+			}
+
+			$text = $this->extract_message_text( $message );
+			if ( '' === $text ) {
+				continue;
+			}
+
+			$fallback_text_chunks[] = $text;
+
+			if ( isset( $message['role'] ) && 'user' === (string) $message['role'] ) {
+				$user_text_chunks[] = $text;
+			}
+		}
+
+		$source_text = implode( "\n", ! empty( $user_text_chunks ) ? $user_text_chunks : $fallback_text_chunks );
+		if ( '' === trim( $source_text ) ) {
+			return '';
+		}
+
+		if ( preg_match_all( '/<content>(.*?)<\/content>/is', $source_text, $matches ) && isset( $matches[1] ) && is_array( $matches[1] ) ) {
+			$content_chunks = array_filter(
+				array_map(
+					'trim',
+					$matches[1]
+				),
+				static function ( string $chunk ): bool {
+					return '' !== $chunk;
+				}
+			);
+
+			if ( ! empty( $content_chunks ) ) {
+				return implode( "\n", $content_chunks );
+			}
+		}
+
+		return $source_text;
+	}
+
+	/**
+	 * Performs a lightweight German-language heuristic.
+	 *
+	 * @since 1.2.2
+	 *
+	 * @param string $text Source text.
+	 * @return bool True if text likely is German.
+	 */
+	private function looks_like_german_text( string $text ): bool {
+		if ( '' === trim( $text ) ) {
+			return false;
+		}
+
+		if ( 1 === preg_match( '/[äöüß]/iu', $text ) ) {
+			return true;
+		}
+
+		$normalized_text = wp_strip_all_tags( $text );
+		if ( function_exists( 'mb_strtolower' ) ) {
+			$normalized_text = mb_strtolower( $normalized_text, 'UTF-8' );
+		} else {
+			$normalized_text = strtolower( $normalized_text );
+		}
+
+		$normalized_text = preg_replace( '/\s+/u', ' ', $normalized_text );
+		if ( ! is_string( $normalized_text ) ) {
+			return false;
+		}
+
+		$normalized_text = ' ' . trim( $normalized_text ) . ' ';
+		$markers         = array(
+			' der ',
+			' die ',
+			' das ',
+			' und ',
+			' ist ',
+			' nicht ',
+			' mit ',
+			' für ',
+			' auf ',
+			' eine ',
+			' einem ',
+			' dem ',
+			' von ',
+			' zu ',
+		);
+
+		$hits = 0;
+		foreach ( $markers as $marker ) {
+			if ( false !== strpos( $normalized_text, $marker ) ) {
+				++$hits;
+			}
+		}
+
+		return $hits >= 3;
+	}
+
+	/**
+	 * Checks whether strict JSON output is expected.
+	 *
+	 * @since 1.2.2
+	 *
+	 * @param string|null $output_mime_type Requested output mime type.
+	 * @return bool True if JSON output is expected.
+	 */
+	private function expects_structured_json_output( ?string $output_mime_type ): bool {
+		return 'application/json' === $output_mime_type;
 	}
 
 	/**
@@ -253,9 +503,11 @@ class OpenWebUITextGenerationModel extends AbstractOpenAiCompatibleTextGeneratio
 				isset( $response_data['choices'] )
 				&& is_array( $response_data['choices'] )
 				&& ! empty( $response_data['choices'] )
-			) {
-				$prepared_response_data = $this->maybe_apply_alt_text_length_limit( $response_data );
-				$prepared_response      = $this->response_from_data( $response, $prepared_response_data );
+				) {
+					$prepared_response_data = $this->maybe_expand_single_choice_for_candidate_count( $response_data );
+					$prepared_response_data = $this->maybe_apply_alt_text_length_limit( $prepared_response_data );
+					$prepared_response_data = $this->maybe_apply_excerpt_word_limit( $prepared_response_data );
+					$prepared_response      = $this->response_from_data( $response, $prepared_response_data );
 
 				return parent::parseResponseToGenerativeAiResult( $prepared_response );
 			}
@@ -268,7 +520,9 @@ class OpenWebUITextGenerationModel extends AbstractOpenAiCompatibleTextGeneratio
 
 			$normalized_response_data = $this->normalize_non_standard_response_data( $response_data );
 			if ( is_array( $normalized_response_data ) ) {
+				$normalized_response_data = $this->maybe_expand_single_choice_for_candidate_count( $normalized_response_data );
 				$normalized_response_data = $this->maybe_apply_alt_text_length_limit( $normalized_response_data );
+				$normalized_response_data = $this->maybe_apply_excerpt_word_limit( $normalized_response_data );
 				$normalized_response      = $this->response_from_data( $response, $normalized_response_data );
 
 				return parent::parseResponseToGenerativeAiResult( $normalized_response );
@@ -421,6 +675,205 @@ class OpenWebUITextGenerationModel extends AbstractOpenAiCompatibleTextGeneratio
 	}
 
 	/**
+	 * Expands a single text choice into multiple choices when needed.
+	 *
+	 * Some Open WebUI setups ignore the `n` parameter and still return only one
+	 * choice. For multi-candidate requests, this method tries to split that single
+	 * text output into distinct candidates.
+	 *
+	 * @since 1.2.2
+	 *
+	 * @param array<string, mixed> $response_data Response payload.
+	 * @return array<string, mixed> Updated response payload.
+	 */
+	private function maybe_expand_single_choice_for_candidate_count( array $response_data ): array {
+		if ( $this->enforce_alt_text_constraints || $this->requested_candidate_count < 2 ) {
+			return $response_data;
+		}
+
+		if (
+			! isset( $response_data['choices'] )
+			|| ! is_array( $response_data['choices'] )
+			|| 1 !== count( $response_data['choices'] )
+		) {
+			return $response_data;
+		}
+
+		$first_choice = $response_data['choices'][0] ?? null;
+		if ( ! is_array( $first_choice ) ) {
+			return $response_data;
+		}
+
+		$content = '';
+		if ( isset( $first_choice['message'] ) && is_array( $first_choice['message'] ) ) {
+			$content = $this->extract_message_text( $first_choice['message'] );
+		}
+		if ( '' === $content && isset( $first_choice['text'] ) && is_string( $first_choice['text'] ) ) {
+			$content = trim( $first_choice['text'] );
+		}
+		if ( '' === $content ) {
+			return $response_data;
+		}
+
+		$candidate_texts = $this->extract_candidate_texts_from_single_content(
+			$content,
+			$this->requested_candidate_count
+		);
+		if ( count( $candidate_texts ) < 2 ) {
+			return $response_data;
+		}
+
+		$expanded_choices = array();
+		foreach ( $candidate_texts as $candidate_text ) {
+			$choice = $first_choice;
+
+			if ( isset( $choice['message'] ) && is_array( $choice['message'] ) ) {
+				$choice['message']['content'] = $candidate_text;
+			} else {
+				$choice['message'] = array(
+					'role'    => 'assistant',
+					'content' => $candidate_text,
+				);
+			}
+
+			if ( ! isset( $choice['finish_reason'] ) || ! is_string( $choice['finish_reason'] ) ) {
+				$choice['finish_reason'] = 'stop';
+			}
+
+			$expanded_choices[] = $choice;
+
+			if ( count( $expanded_choices ) >= $this->requested_candidate_count ) {
+				break;
+			}
+		}
+
+		if ( ! empty( $expanded_choices ) ) {
+			$response_data['choices'] = array_values( $expanded_choices );
+		}
+
+		return $response_data;
+	}
+
+	/**
+	 * Extracts candidate texts from a single model response string.
+	 *
+	 * @since 1.2.2
+	 *
+	 * @param string $content Single response text.
+	 * @param int    $limit Maximum number of candidates to return.
+	 * @return array<int, string> Candidate texts.
+	 */
+	private function extract_candidate_texts_from_single_content( string $content, int $limit ): array {
+		$limit      = max( 1, $limit );
+		$candidates = array();
+
+		$decoded_json = json_decode( $content, true );
+		if ( is_array( $decoded_json ) ) {
+			$decoded_candidates = $this->extract_candidate_texts_from_decoded_json( $decoded_json );
+			foreach ( $decoded_candidates as $candidate ) {
+				if ( '' === $candidate || in_array( $candidate, $candidates, true ) ) {
+					continue;
+				}
+
+				$candidates[] = $candidate;
+				if ( count( $candidates ) >= $limit ) {
+					return $candidates;
+				}
+			}
+		}
+
+		$lines = preg_split( '/\R/u', $content );
+		if ( is_array( $lines ) ) {
+			foreach ( $lines as $line ) {
+				$line = preg_replace( '/^\s*(?:[-*•]+|\d+[.)])\s*/u', '', (string) $line );
+				if ( ! is_string( $line ) ) {
+					continue;
+				}
+
+				$line = trim( $line, " \t\n\r\0\x0B\"'`“”‘’" );
+				if ( '' === $line || in_array( $line, $candidates, true ) ) {
+					continue;
+				}
+
+				$candidates[] = $line;
+				if ( count( $candidates ) >= $limit ) {
+					return $candidates;
+				}
+			}
+		}
+
+		return $candidates;
+	}
+
+	/**
+	 * Extracts candidate strings from decoded JSON structures.
+	 *
+	 * @since 1.2.2
+	 *
+	 * @param array<int|string, mixed> $decoded_json Decoded JSON payload.
+	 * @return array<int, string> Candidate texts.
+	 */
+	private function extract_candidate_texts_from_decoded_json( array $decoded_json ): array {
+		$candidates = array();
+
+		if ( $this->is_array_list( $decoded_json ) ) {
+			foreach ( $decoded_json as $value ) {
+				if ( ! is_string( $value ) ) {
+					continue;
+				}
+
+				$value = trim( $value, " \t\n\r\0\x0B\"'`“”‘’" );
+				if ( '' === $value || in_array( $value, $candidates, true ) ) {
+					continue;
+				}
+
+				$candidates[] = $value;
+			}
+
+			return $candidates;
+		}
+
+		if ( isset( $decoded_json['titles'] ) && is_array( $decoded_json['titles'] ) ) {
+			foreach ( $decoded_json['titles'] as $title ) {
+				if ( ! is_string( $title ) ) {
+					continue;
+				}
+
+				$title = trim( $title, " \t\n\r\0\x0B\"'`“”‘’" );
+				if ( '' === $title || in_array( $title, $candidates, true ) ) {
+					continue;
+				}
+
+				$candidates[] = $title;
+			}
+		}
+
+		return $candidates;
+	}
+
+	/**
+	 * Determines whether an array uses consecutive numeric keys from 0.
+	 *
+	 * @since 1.2.2
+	 *
+	 * @param array<int|string, mixed> $value_list Array to inspect.
+	 * @return bool True if the array is a list.
+	 */
+	private function is_array_list( array $value_list ): bool {
+		$index = 0;
+
+		foreach ( $value_list as $key => $_value ) {
+			if ( $key !== $index ) {
+				return false;
+			}
+
+			++$index;
+		}
+
+		return true;
+	}
+
+	/**
 	 * Returns the alt-text length constraint.
 	 *
 	 * @since 1.1.0
@@ -443,6 +896,31 @@ class OpenWebUITextGenerationModel extends AbstractOpenAiCompatibleTextGeneratio
 		}
 
 		return $max_length;
+	}
+
+	/**
+	 * Returns the maximum allowed excerpt length in words.
+	 *
+	 * @since 1.2.2
+	 *
+	 * @return int Maximum words.
+	 */
+	private function get_excerpt_max_words(): int {
+		$max_words = 30;
+
+		if ( function_exists( 'apply_filters' ) ) {
+			$max_words = (int) apply_filters(
+				'ai_provider_for_openwebui_excerpt_max_words',
+				$max_words,
+				$this->metadata()->getId()
+			);
+		}
+
+		if ( $max_words < 5 ) {
+			return 30;
+		}
+
+		return $max_words;
 	}
 
 	/**
@@ -470,6 +948,38 @@ class OpenWebUITextGenerationModel extends AbstractOpenAiCompatibleTextGeneratio
 				|| false !== strpos( $normalized_text, 'alt-text' )
 				|| false !== strpos( $normalized_text, 'alttext' )
 				|| false !== strpos( $normalized_text, 'alternativtext' )
+			) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Detects whether the request is for excerpt generation.
+	 *
+	 * @since 1.2.2
+	 *
+	 * @param array<int, mixed> $messages Prepared request messages.
+	 * @return bool True if this appears to be an excerpt request.
+	 */
+	private function is_excerpt_request( array $messages ): bool {
+		foreach ( $messages as $message ) {
+			if ( ! is_array( $message ) ) {
+				continue;
+			}
+
+			$text = $this->extract_message_text( $message );
+			if ( '' === $text ) {
+				continue;
+			}
+
+			$normalized_text = strtolower( $text );
+			if (
+				false !== strpos( $normalized_text, 'excerpt' )
+				|| false !== strpos( $normalized_text, 'auszug' )
+				|| false !== strpos( $normalized_text, 'kurzbeschreibung' )
 			) {
 				return true;
 			}
@@ -581,6 +1091,59 @@ class OpenWebUITextGenerationModel extends AbstractOpenAiCompatibleTextGeneratio
 	}
 
 	/**
+	 * Applies excerpt max-word constraint to text candidates.
+	 *
+	 * @since 1.2.2
+	 *
+	 * @param array<string, mixed> $response_data Response payload.
+	 * @return array<string, mixed> Updated response payload.
+	 */
+	private function maybe_apply_excerpt_word_limit( array $response_data ): array {
+		if ( ! $this->enforce_excerpt_constraints || $this->excerpt_max_words < 5 ) {
+			return $response_data;
+		}
+
+		if ( ! isset( $response_data['choices'] ) || ! is_array( $response_data['choices'] ) ) {
+			return $response_data;
+		}
+
+		foreach ( $response_data['choices'] as $index => $choice ) {
+			if ( ! is_array( $choice ) ) {
+				continue;
+			}
+
+			if ( isset( $choice['message'] ) && is_array( $choice['message'] ) ) {
+				$message = $choice['message'];
+
+				if ( isset( $message['content'] ) && is_string( $message['content'] ) ) {
+					$message['content'] = $this->truncate_excerpt_words( $message['content'] );
+				}
+
+				if ( isset( $message['content'] ) && is_array( $message['content'] ) ) {
+					foreach ( $message['content'] as $part_index => $part ) {
+						if ( ! is_array( $part ) || ! isset( $part['text'] ) || ! is_string( $part['text'] ) ) {
+							continue;
+						}
+
+						$part['text']                      = $this->truncate_excerpt_words( $part['text'] );
+						$message['content'][ $part_index ] = $part;
+					}
+				}
+
+				$choice['message'] = $message;
+			}
+
+			if ( isset( $choice['text'] ) && is_string( $choice['text'] ) ) {
+				$choice['text'] = $this->truncate_excerpt_words( $choice['text'] );
+			}
+
+			$response_data['choices'][ $index ] = $choice;
+		}
+
+		return $response_data;
+	}
+
+	/**
 	 * Truncates alt text to the configured maximum length.
 	 *
 	 * @since 1.1.0
@@ -607,6 +1170,30 @@ class OpenWebUITextGenerationModel extends AbstractOpenAiCompatibleTextGeneratio
 		}
 
 		return $text;
+	}
+
+	/**
+	 * Truncates excerpt text to the configured maximum word count.
+	 *
+	 * @since 1.2.2
+	 *
+	 * @param string $text Excerpt candidate.
+	 * @return string Truncated excerpt.
+	 */
+	private function truncate_excerpt_words( string $text ): string {
+		$text = trim( $text );
+		if ( '' === $text ) {
+			return $text;
+		}
+
+		$words = preg_split( '/\s+/u', $text, -1, PREG_SPLIT_NO_EMPTY );
+		if ( ! is_array( $words ) || count( $words ) <= $this->excerpt_max_words ) {
+			return $text;
+		}
+
+		$words = array_slice( $words, 0, $this->excerpt_max_words );
+
+		return trim( implode( ' ', $words ) );
 	}
 
 	/**

@@ -3,7 +3,7 @@ Contributors:      pronomix
 Tags:              ai, open webui, openwebui, llm, api
 Requires at least: 6.7
 Tested up to:      6.9
-Stable tag:        1.2.0
+Stable tag:        1.3.0
 Requires PHP:      7.4
 License:           GPL-2.0-or-later
 License URI:       https://www.gnu.org/licenses/gpl-2.0.html
@@ -113,6 +113,14 @@ Source and usage notes:
 * `third-party-notices.txt`
 
 == Changelog ==
+
+= 1.3.0 - 2026-03-27 =
+
+* Improved language inheritance by prioritizing source language from `<content>` blocks.
+* Added robust multi-candidate title fallback when Open WebUI returns only one choice.
+* Hardened alt text generation to prevent prompt echoes.
+* Enforced shorter excerpt output with prompt guidance and server-side word limiting.
+* Moved provider prompt constraints into dedicated template files.
 
 = 1.2.0 - 2026-03-26 =
 

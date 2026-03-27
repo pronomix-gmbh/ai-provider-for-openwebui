@@ -116,4 +116,85 @@ class OpenWebUIPromptConstraintsTest extends TestCase {
 			self::assertStringContainsString( $needle, $instruction );
 		}
 	}
+
+	/**
+	 * @return array<string, array{locale: string, max_words: int, contains: list<string>}>
+	 */
+	public function excerpt_instruction_provider(): array {
+		return array(
+			'localized excerpt instruction' => array(
+				'locale'    => 'de-DE',
+				'max_words' => 30,
+				'contains'  => array(
+					'locale "de-DE"',
+					'at most 30 words',
+				),
+			),
+			'fallback excerpt instruction' => array(
+				'locale'    => '',
+				'max_words' => 1,
+				'contains'  => array(
+					'at most 5 words',
+					'single plain-text excerpt',
+				),
+			),
+		);
+	}
+
+	/**
+	 * @dataProvider excerpt_instruction_provider
+	 *
+	 * @param string       $locale Locale.
+	 * @param int          $max_words Requested maximum words.
+	 * @param list<string> $contains Substrings that must be contained.
+	 */
+	public function test_build_excerpt_instruction( string $locale, int $max_words, array $contains ): void {
+		$instruction = OpenWebUIPromptConstraints::build_excerpt_instruction( $locale, $max_words );
+
+		foreach ( $contains as $needle ) {
+			self::assertStringContainsString( $needle, $instruction );
+		}
+	}
+
+	/**
+	 * @return array<string, array{candidate_count: int, exact: string|null, contains: list<string>}>
+	 */
+	public function multi_candidate_instruction_provider(): array {
+		return array(
+			'no multi candidate constraint' => array(
+				'candidate_count' => 1,
+				'exact'           => '',
+				'contains'        => array(),
+			),
+			'multi candidate constraint' => array(
+				'candidate_count' => 3,
+				'exact'           => null,
+				'contains'        => array(
+					'exactly 3 distinct alternatives',
+					'numbered plain-text list',
+				),
+			),
+		);
+	}
+
+	/**
+	 * @dataProvider multi_candidate_instruction_provider
+	 *
+	 * @param int          $candidate_count Requested candidate count.
+	 * @param string|null  $exact Exact expected instruction.
+	 * @param list<string> $contains Substrings that must be contained.
+	 */
+	public function test_build_multi_candidate_instruction( int $candidate_count, ?string $exact, array $contains ): void {
+		$instruction = OpenWebUIPromptConstraints::build_multi_candidate_instruction( $candidate_count );
+
+		if ( null !== $exact ) {
+			self::assertSame( $exact, $instruction );
+
+			return;
+		}
+
+		foreach ( $contains as $needle ) {
+			self::assertStringContainsString( $needle, $instruction );
+		}
+	}
 }

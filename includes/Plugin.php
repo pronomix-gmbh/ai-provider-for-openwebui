@@ -28,13 +28,13 @@ use WordPress\AiClient\Providers\Models\DTO\ModelMetadata;
 class Plugin {
 
 	/**
-	 * Cached capability maps for selected Open WebUI models.
+	 * Cached Open WebUI model metadata map.
 	 *
-	 * @since 1.1.0
+	 * @since 1.2.1
 	 *
-	 * @var array<string, array<string, bool>>
+	 * @var array<string, ModelMetadata>|null
 	 */
-	private array $model_capability_cache = array();
+	private ?array $openwebui_models_cache = null;
 
 	/**
 	 * Cached state whether a non-Open WebUI provider is configured.
@@ -206,7 +206,7 @@ class Plugin {
 	 * @return array<int, mixed> Updated model tuples.
 	 */
 	public function filter_preferred_text_models( array $preferred_models ): array {
-		return $this->prepend_selected_openwebui_model( $preferred_models );
+		return $this->prepend_openwebui_models( $preferred_models, 'text_generation' );
 	}
 
 	/**
@@ -218,7 +218,7 @@ class Plugin {
 	 * @return array<int, mixed> Updated model tuples.
 	 */
 	public function filter_preferred_image_models( array $preferred_models ): array {
-		return $this->prepend_selected_openwebui_model( $preferred_models );
+		return $this->prepend_openwebui_models( $preferred_models, 'image_generation' );
 	}
 
 	/**
@@ -230,27 +230,47 @@ class Plugin {
 	 * @return array<int, mixed> Updated model tuples.
 	 */
 	public function filter_preferred_vision_models( array $preferred_models ): array {
-		return $this->prepend_selected_openwebui_model( $preferred_models );
+		return $this->prepend_openwebui_models( $preferred_models, 'vision' );
 	}
 
 	/**
-	 * Prepends the selected OpenWebUI model to preferred models.
+	 * Prepends Open WebUI models to preferred models for a required capability.
 	 *
-	 * @since 1.1.0
+	 * The selected model is always prioritized first if set. Additional Open WebUI
+	 * models that satisfy the requested capability are then added as fallbacks.
+	 *
+	 * @since 1.2.1
 	 *
 	 * @param array<int, mixed> $preferred_models Preferred model tuples.
+	 * @param string            $required_capability Required capability key.
 	 * @return array<int, mixed> Updated model tuples.
 	 */
-	private function prepend_selected_openwebui_model( array $preferred_models ): array {
-		$selected_model = $this->get_selected_openwebui_model_id();
+	private function prepend_openwebui_models( array $preferred_models, string $required_capability ): array {
+		$ordered_model_ids = array();
+		$selected_model    = $this->get_selected_openwebui_model_id();
+		if ( '' !== $selected_model ) {
+			$ordered_model_ids[] = $selected_model;
+		}
 
-		if ( '' === $selected_model ) {
+		$capability_model_ids = $this->get_openwebui_model_ids_by_capability( $required_capability );
+		if ( is_array( $capability_model_ids ) ) {
+			foreach ( $capability_model_ids as $model_id ) {
+				if ( in_array( $model_id, $ordered_model_ids, true ) ) {
+					continue;
+				}
+
+				$ordered_model_ids[] = $model_id;
+			}
+		}
+
+		if ( empty( $ordered_model_ids ) ) {
 			return $preferred_models;
 		}
 
-		$filtered_models = array(
-			array( 'openwebui', $selected_model ),
-		);
+		$filtered_models = array();
+		foreach ( $ordered_model_ids as $model_id ) {
+			$filtered_models[] = array( 'openwebui', $model_id );
+		}
 
 		foreach ( $preferred_models as $preferred_model ) {
 			if ( ! is_array( $preferred_model ) || ! isset( $preferred_model[0], $preferred_model[1] ) ) {
@@ -261,7 +281,7 @@ class Plugin {
 			$provider_id = (string) $preferred_model[0];
 			$model_id    = (string) $preferred_model[1];
 
-			if ( 'openwebui' === $provider_id && $selected_model === $model_id ) {
+			if ( 'openwebui' === $provider_id && in_array( $model_id, $ordered_model_ids, true ) ) {
 				continue;
 			}
 
@@ -272,7 +292,7 @@ class Plugin {
 	}
 
 	/**
-	 * Disables image generation experiment when the selected Open WebUI model does not support it
+	 * Disables image generation experiment only if no Open WebUI model supports it
 	 * and no other provider is configured.
 	 *
 	 * @since 1.1.0
@@ -285,7 +305,7 @@ class Plugin {
 	}
 
 	/**
-	 * Disables alt-text experiment when the selected Open WebUI model does not support vision
+	 * Disables alt-text experiment only if no Open WebUI model supports vision
 	 * and no other provider is configured.
 	 *
 	 * @since 1.1.0
@@ -298,12 +318,11 @@ class Plugin {
 	}
 
 	/**
-	 * Filters a feature flag based on selected Open WebUI model capabilities.
+	 * Filters a feature flag based on available Open WebUI model capabilities.
 	 *
 	 * The feature is only force-disabled when:
-	 * 1) a preferred Open WebUI model is set,
-	 * 2) that model lacks the required capability, and
-	 * 3) no other configured provider is available as fallback.
+	 * 1) no Open WebUI model with the required capability is available, and
+	 * 2) no other configured provider is available as fallback.
 	 *
 	 * @since 1.1.0
 	 *
@@ -316,25 +335,17 @@ class Plugin {
 			return false;
 		}
 
-		$selected_model = $this->get_selected_openwebui_model_id();
-		if ( '' === $selected_model ) {
-			return $enabled;
-		}
-
 		if ( $this->has_configured_non_openwebui_provider() ) {
 			return $enabled;
 		}
 
-		$capability_map = $this->get_selected_openwebui_model_capabilities( $selected_model );
-		if ( ! is_array( $capability_map ) ) {
+		$capability_model_ids = $this->get_openwebui_model_ids_by_capability( $required_capability );
+		if ( ! is_array( $capability_model_ids ) ) {
+			// Unknown state: keep feature enabled to avoid false negatives.
 			return $enabled;
 		}
 
-		if ( ! isset( $capability_map[ $required_capability ] ) ) {
-			return $enabled;
-		}
-
-		return (bool) $capability_map[ $required_capability ];
+		return ! empty( $capability_model_ids );
 	}
 
 	/**
@@ -387,16 +398,66 @@ class Plugin {
 	}
 
 	/**
-	 * Gets capabilities of the selected Open WebUI model.
+	 * Gets all Open WebUI model IDs that support a required capability.
 	 *
-	 * @since 1.1.0
+	 * @since 1.2.1
 	 *
-	 * @param string $model_id Model ID.
-	 * @return array<string, bool>|null Capability map or null on unknown state.
+	 * @param string $required_capability Capability key.
+	 * @return array<int, string>|null Matching model IDs, or null when unknown.
 	 */
-	private function get_selected_openwebui_model_capabilities( string $model_id ): ?array {
-		if ( isset( $this->model_capability_cache[ $model_id ] ) ) {
-			return $this->model_capability_cache[ $model_id ];
+	private function get_openwebui_model_ids_by_capability( string $required_capability ): ?array {
+		$models_map = $this->get_openwebui_models_map();
+		if ( ! is_array( $models_map ) ) {
+			return null;
+		}
+
+		$model_ids = array();
+		foreach ( $models_map as $model_key => $model_metadata ) {
+			if ( ! $model_metadata instanceof ModelMetadata ) {
+				continue;
+			}
+
+			$model_id = trim( $model_metadata->getId() );
+			// Backward compatibility for map-like payloads keyed by model ID.
+			if ( '' === $model_id && is_string( $model_key ) ) {
+				$model_id = trim( $model_key );
+			}
+			if ( '' === $model_id ) {
+				continue;
+			}
+
+			if ( 'image_generation' === $required_capability ) {
+				if ( ! $this->model_supports_image_generation( $model_metadata ) ) {
+					continue;
+				}
+			} elseif ( 'vision' === $required_capability ) {
+				if ( ! $this->model_supports_vision( $model_metadata ) ) {
+					continue;
+				}
+			} elseif ( 'text_generation' === $required_capability ) {
+				if ( ! $this->model_supports_text_generation( $model_metadata ) ) {
+					continue;
+				}
+			}
+
+			$model_ids[] = $model_id;
+		}
+
+		sort( $model_ids, \SORT_STRING );
+
+		return $model_ids;
+	}
+
+	/**
+	 * Gets the Open WebUI model metadata map from the AI registry.
+	 *
+	 * @since 1.2.1
+	 *
+	 * @return array<string, ModelMetadata>|null Models map or null on unknown state.
+	 */
+	private function get_openwebui_models_map(): ?array {
+		if ( null !== $this->openwebui_models_cache ) {
+			return $this->openwebui_models_cache;
 		}
 
 		if ( ! class_exists( AiClient::class ) ) {
@@ -416,24 +477,27 @@ class Plugin {
 			return null;
 		}
 
-		if ( ! isset( $models_map[ $model_id ] ) || ! $models_map[ $model_id ] instanceof ModelMetadata ) {
-			$this->model_capability_cache[ $model_id ] = array(
-				'image_generation' => false,
-				'vision'           => false,
-			);
+		$this->openwebui_models_cache = is_array( $models_map ) ? $models_map : array();
 
-			return $this->model_capability_cache[ $model_id ];
+		return $this->openwebui_models_cache;
+	}
+
+	/**
+	 * Checks if a model supports text generation.
+	 *
+	 * @since 1.2.1
+	 *
+	 * @param ModelMetadata $model_metadata Model metadata.
+	 * @return bool True if text generation is supported.
+	 */
+	private function model_supports_text_generation( ModelMetadata $model_metadata ): bool {
+		foreach ( $model_metadata->getSupportedCapabilities() as $capability ) {
+			if ( $capability->isTextGeneration() ) {
+				return true;
+			}
 		}
 
-		$model_metadata = $models_map[ $model_id ];
-		$capability_map = array(
-			'image_generation' => $this->model_supports_image_generation( $model_metadata ),
-			'vision'           => $this->model_supports_vision( $model_metadata ),
-		);
-
-		$this->model_capability_cache[ $model_id ] = $capability_map;
-
-		return $capability_map;
+		return false;
 	}
 
 	/**
