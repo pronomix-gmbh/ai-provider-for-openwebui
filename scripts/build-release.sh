@@ -13,7 +13,7 @@ cleanup() {
 trap cleanup EXIT
 
 VERSION="$(
-	awk -F': *' '/^[[:space:]]*\*[[:space:]]+Version:/ { print $2; exit }' "${ROOT_DIR}/plugin.php" | xargs
+	awk -F': *' '/^[[:space:]]*\*[[:space:]]+Version:/ { print $2; exit }' "${ROOT_DIR}/ai-provider-for-open-webui.php" | xargs
 )"
 
 if [[ -z "${VERSION}" ]]; then

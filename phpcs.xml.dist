@@ -9,7 +9,7 @@
 	<config name="testVersion" value="7.4-"/>
 	<config name="text_domain" value="ai-provider-for-open-webui"/>
 
-	<file>plugin.php</file>
+	<file>ai-provider-for-open-webui.php</file>
 	<file>includes</file>
 	<exclude-pattern>*/vendor/*</exclude-pattern>
 

@@ -27,11 +27,11 @@ class OpenWebUIPromptTemplate {
 	 */
 	public static function render( string $template_name, array $vars = array() ): string {
 		$template_name = trim( $template_name );
-		if ( '' === $template_name || ! defined( 'AI_PROVIDER_FOR_OPENWEBUI_PLUGIN_DIR' ) ) {
+		if ( '' === $template_name || ! defined( 'OBENWEB_OPENWEBUI_PROVIDER_PLUGIN_DIR' ) ) {
 			return '';
 		}
 
-		$template_path = AI_PROVIDER_FOR_OPENWEBUI_PLUGIN_DIR . 'includes/Prompts/' . $template_name . '.php';
+		$template_path = OBENWEB_OPENWEBUI_PROVIDER_PLUGIN_DIR . 'includes/Prompts/' . $template_name . '.php';
 		if ( ! file_exists( $template_path ) || ! is_readable( $template_path ) ) {
 			return '';
 		}

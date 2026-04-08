@@ -59,7 +59,7 @@ class Plugin {
 		add_filter( 'wpai_preferred_vision_models', array( $this, 'filter_preferred_vision_models' ) );
 		add_filter( 'wpai_feature_image-generation_enabled', array( $this, 'filter_image_generation_feature_enabled' ) );
 		add_filter( 'wpai_feature_alt-text-generation_enabled', array( $this, 'filter_alt_text_generation_feature_enabled' ) );
-		add_filter( 'plugin_action_links_' . plugin_basename( AI_PROVIDER_FOR_OPENWEBUI_PLUGIN_FILE ), array( $this, 'plugin_action_links' ) );
+		add_filter( 'plugin_action_links_' . plugin_basename( OBENWEB_OPENWEBUI_PROVIDER_PLUGIN_FILE ), array( $this, 'plugin_action_links' ) );
 		add_filter( 'http_request_host_is_external', array( $this, 'allow_localhost_requests' ), 10, 3 );
 		add_filter( 'http_allowed_safe_ports', array( $this, 'allow_openwebui_ports' ) );
 	}

@@ -3,7 +3,7 @@ Contributors:      pronomix
 Tags:              ai, open webui, openwebui, llm, api
 Requires at least: 6.7
 Tested up to:      6.9
-Stable tag:        1.3.0
+Stable tag:        1.3.1
 Requires PHP:      7.4
 License:           GPL-2.0-or-later
 License URI:       https://www.gnu.org/licenses/gpl-2.0.html
@@ -113,6 +113,11 @@ Source and usage notes:
 * `third-party-notices.txt`
 
 == Changelog ==
+
+= 1.3.1 - 2026-04-08 =
+
+* Präfixe für kollisionsrelevante Namen vereinheitlicht und Hauptdatei auf Slug-konformen Dateinamen umgestellt.
+* WordPress.org-Verzeichnis-Assets aus dem Plugin-Paket entfernt.
 
 = 1.3.0 - 2026-03-27 =
 

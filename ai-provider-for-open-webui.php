@@ -6,7 +6,7 @@
  * Requires at least: 6.7
  * Requires PHP:      7.4
  * Requires Plugins:  ai
- * Version:           1.3.0
+ * Version:           1.3.1
  * Author:            pronomiX GmbH
  * Author URI:        https://www.pronomix.de
  * License:           GPL-2.0-or-later
@@ -26,10 +26,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'AI_PROVIDER_FOR_OPENWEBUI_MIN_PHP_VERSION', '7.4' );
-define( 'AI_PROVIDER_FOR_OPENWEBUI_MIN_WP_VERSION', '6.7' );
-define( 'AI_PROVIDER_FOR_OPENWEBUI_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
-define( 'AI_PROVIDER_FOR_OPENWEBUI_PLUGIN_FILE', __FILE__ );
+define( 'OBENWEB_OPENWEBUI_PROVIDER_MIN_PHP_VERSION', '7.4' );
+define( 'OBENWEB_OPENWEBUI_PROVIDER_MIN_WP_VERSION', '6.7' );
+define( 'OBENWEB_OPENWEBUI_PROVIDER_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
+define( 'OBENWEB_OPENWEBUI_PROVIDER_PLUGIN_FILE', __FILE__ );
 
 /**
  * Displays an admin notice for requirement failures.
@@ -59,7 +59,7 @@ function requirement_notice( string $message ): void {
  * @return bool True if PHP version is sufficient, false otherwise.
  */
 function check_php_version(): bool {
-	if ( version_compare( PHP_VERSION, AI_PROVIDER_FOR_OPENWEBUI_MIN_PHP_VERSION, '<' ) ) {
+	if ( version_compare( PHP_VERSION, OBENWEB_OPENWEBUI_PROVIDER_MIN_PHP_VERSION, '<' ) ) {
 		add_action(
 			'admin_notices',
 			static function () {
@@ -67,7 +67,7 @@ function check_php_version(): bool {
 					sprintf(
 						/* translators: 1: Required PHP version, 2: Current PHP version */
 						__( 'The Open WebUI Provider plugin requires PHP version %1$s or higher. You are running PHP version %2$s.', 'ai-provider-for-open-webui' ),
-						AI_PROVIDER_FOR_OPENWEBUI_MIN_PHP_VERSION,
+						OBENWEB_OPENWEBUI_PROVIDER_MIN_PHP_VERSION,
 						PHP_VERSION
 					)
 				);
@@ -90,7 +90,7 @@ function check_php_version(): bool {
  * @return bool True if WordPress version is sufficient, false otherwise.
  */
 function check_wp_version(): bool {
-	if ( ! is_wp_version_compatible( AI_PROVIDER_FOR_OPENWEBUI_MIN_WP_VERSION ) ) {
+	if ( ! is_wp_version_compatible( OBENWEB_OPENWEBUI_PROVIDER_MIN_WP_VERSION ) ) {
 		add_action(
 			'admin_notices',
 			static function () {
@@ -99,7 +99,7 @@ function check_wp_version(): bool {
 					sprintf(
 						/* translators: 1: Required WordPress version, 2: Current WordPress version */
 						__( 'The Open WebUI Provider plugin requires WordPress version %1$s or higher. You are running WordPress version %2$s.', 'ai-provider-for-open-webui' ),
-						AI_PROVIDER_FOR_OPENWEBUI_MIN_WP_VERSION,
+						OBENWEB_OPENWEBUI_PROVIDER_MIN_WP_VERSION,
 						$wp_version
 					)
 				);
@@ -131,7 +131,7 @@ function load(): void {
 	}
 
 	// Throw an error if the composer autoloader is not found.
-	if ( ! file_exists( AI_PROVIDER_FOR_OPENWEBUI_PLUGIN_DIR . 'vendor/autoload.php' ) ) {
+	if ( ! file_exists( OBENWEB_OPENWEBUI_PROVIDER_PLUGIN_DIR . 'vendor/autoload.php' ) ) {
 		add_action(
 			'admin_notices',
 			static function () {
@@ -150,7 +150,7 @@ function load(): void {
 	}
 
 	// Load the composer autoloader.
-	require_once AI_PROVIDER_FOR_OPENWEBUI_PLUGIN_DIR . 'vendor/autoload.php';
+	require_once OBENWEB_OPENWEBUI_PROVIDER_PLUGIN_DIR . 'vendor/autoload.php';
 
 	// Initialize the plugin.
 	$plugin = new Plugin();

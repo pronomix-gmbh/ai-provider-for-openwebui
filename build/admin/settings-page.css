@@ -26,41 +26,41 @@
 	margin: 0;
 }
 
-.ai-provider-for-open-webui-settings__card .description {
+.obenweb-openwebui-provider-settings__card .description {
 	margin: 0;
 }
 
-.ai-provider-for-open-webui-settings__fields .form-table {
+.obenweb-openwebui-provider-settings__fields .form-table {
 	margin: 0;
 	border-top: 0.0625rem solid #f0f0f0;
 }
 
-.ai-provider-for-open-webui-settings__fields .form-table th {
+.obenweb-openwebui-provider-settings__fields .form-table th {
 	padding-left: 0;
 	width: 12rem;
 }
 
-.ai-provider-for-open-webui-settings__fields .form-table td {
+.obenweb-openwebui-provider-settings__fields .form-table td {
 	padding-right: 0;
 }
 
-.ai-provider-for-open-webui-settings__fields .regular-text {
+.obenweb-openwebui-provider-settings__fields .regular-text {
 	width: 100%;
 	max-width: 28rem;
 }
 
-.ai-provider-for-open-webui-settings__model-field,
-.ai-provider-for-open-webui-settings__model-routing {
+.obenweb-openwebui-provider-settings__model-field,
+.obenweb-openwebui-provider-settings__model-routing {
 	display: grid;
 	gap: 0.875rem;
 }
 
-.ai-provider-for-open-webui-settings__model-field p,
-.ai-provider-for-open-webui-settings__model-routing p {
+.obenweb-openwebui-provider-settings__model-field p,
+.obenweb-openwebui-provider-settings__model-routing p {
 	margin: 0;
 }
 
-.ai-provider-for-open-webui-settings__actions .submit {
+.obenweb-openwebui-provider-settings__actions .submit {
 	margin: 0;
 	padding: 0;
 }
@@ -81,7 +81,7 @@
 }
 
 @media (max-width: 782px) {
-	.ai-provider-for-open-webui-settings__fields .form-table th {
+	.obenweb-openwebui-provider-settings__fields .form-table th {
 		width: auto;
 	}
 }

@@ -22,13 +22,13 @@ use WordPress\AiClient\AiClient;
  */
 class OpenWebUISettings {
 
-	private const OPTION_GROUP             = 'ai-provider-for-open-webui-settings';
-	private const OPTION_NAME              = 'ai_provider_for_openwebui_settings';
+	private const OPTION_GROUP             = 'obenweb-openwebui-provider-settings';
+	private const OPTION_NAME              = 'obenweb_openwebui_provider_settings';
 	private const CONNECTOR_API_KEY_OPTION = 'connectors_ai_openwebui_api_key';
 	private const PAGE_SLUG                = 'ai-provider-for-open-webui';
-	private const SECTION_ID               = 'ai_provider_for_openwebui_main';
-	private const AJAX_ACTION              = 'ai_provider_for_openwebui_list_models';
-	private const NONCE_ACTION             = 'ai_provider_for_openwebui_nonce';
+	private const SECTION_ID               = 'obenweb_openwebui_provider_main';
+	private const AJAX_ACTION              = 'obenweb_openwebui_provider_list_models';
+	private const NONCE_ACTION             = 'obenweb_openwebui_provider_nonce';
 
 	/**
 	 * Initializes the settings.
@@ -193,11 +193,11 @@ class OpenWebUISettings {
 		<div class="wrap">
 			<h1><?php echo esc_html( get_admin_page_title() ); ?></h1>
 
-			<div class="ai-experiments ai-provider-for-open-webui-settings">
-				<form action="options.php" method="post" class="ai-provider-for-open-webui-settings__form">
+			<div class="ai-experiments obenweb-openwebui-provider-settings">
+				<form action="options.php" method="post" class="obenweb-openwebui-provider-settings__form">
 					<?php settings_fields( self::OPTION_GROUP ); ?>
 
-					<div class="ai-experiments__card ai-provider-for-open-webui-settings__card">
+					<div class="ai-experiments__card obenweb-openwebui-provider-settings__card">
 						<div class="ai-experiments__card-heading">
 							<h2><?php esc_html_e( 'Connection Settings', 'ai-provider-for-open-webui' ); ?></h2>
 							<p class="description">
@@ -222,11 +222,11 @@ class OpenWebUISettings {
 							</p>
 						</div>
 
-						<div class="ai-provider-for-open-webui-settings__fields">
+						<div class="obenweb-openwebui-provider-settings__fields">
 							<?php do_settings_sections( self::PAGE_SLUG ); ?>
 						</div>
 
-						<div class="ai-provider-for-open-webui-settings__actions">
+						<div class="obenweb-openwebui-provider-settings__actions">
 							<?php submit_button(); ?>
 						</div>
 					</div>
@@ -312,7 +312,7 @@ class OpenWebUISettings {
 		$selected_model = isset( $settings['model'] ) ? (string) $settings['model'] : '';
 		?>
 
-		<div class="ai-provider-for-open-webui-settings__model-field">
+		<div class="obenweb-openwebui-provider-settings__model-field">
 			<p class="description">
 				<?php esc_html_e( 'Choose one Open WebUI model to use as preferred model for text, image, and vision requests.', 'ai-provider-for-open-webui' ); ?>
 			</p>
@@ -324,13 +324,13 @@ class OpenWebUISettings {
 					id="<?php echo esc_attr( self::OPTION_NAME . '-model' ); ?>"
 					name="<?php echo esc_attr( self::OPTION_NAME . '[model]' ); ?>"
 					class="regular-text"
-					list="ai-provider-for-open-webui-model-suggestions-all"
+					list="obenweb-openwebui-provider-model-suggestions-all"
 					value="<?php echo esc_attr( $selected_model ); ?>"
 					placeholder="<?php esc_attr_e( 'for example gpt-oss:20b', 'ai-provider-for-open-webui' ); ?>"
 					autocomplete="off"
 					spellcheck="false"
 				/>
-				<datalist id="ai-provider-for-open-webui-model-suggestions-all"></datalist>
+				<datalist id="obenweb-openwebui-provider-model-suggestions-all"></datalist>
 				<span class="description"><?php esc_html_e( 'If empty, normal AI plugin model discovery applies.', 'ai-provider-for-open-webui' ); ?></span>
 			</p>
 		</div>
@@ -354,7 +354,7 @@ class OpenWebUISettings {
 			return;
 		}
 
-		$plugin_dir = AI_PROVIDER_FOR_OPENWEBUI_PLUGIN_DIR;
+		$plugin_dir = OBENWEB_OPENWEBUI_PROVIDER_PLUGIN_DIR;
 		$asset_file = $plugin_dir . 'build/admin/settings.asset.php';
 		$asset      = file_exists( $asset_file ) ? require $asset_file : array(); // phpcs:ignore WordPressVIPMinimum.Files.IncludingFile.UsingVariable -- Asset file path is built from a known constant.
 
@@ -362,35 +362,35 @@ class OpenWebUISettings {
 		$version      = isset( $asset['version'] ) ? $asset['version'] : false;
 
 		wp_enqueue_style(
-			'ai-provider-for-open-webui-settings-page',
-			plugins_url( 'build/admin/settings-page.css', $plugin_dir . 'plugin.php' ),
+			'obenweb-openwebui-provider-settings-page',
+			plugins_url( 'build/admin/settings-page.css', OBENWEB_OPENWEBUI_PROVIDER_PLUGIN_FILE ),
 			array(),
 			$version
 		);
 
 		wp_enqueue_script(
-			'ai-provider-for-open-webui-settings',
-			plugins_url( 'build/admin/settings.js', $plugin_dir . 'plugin.php' ),
+			'obenweb-openwebui-provider-settings',
+			plugins_url( 'build/admin/settings.js', OBENWEB_OPENWEBUI_PROVIDER_PLUGIN_FILE ),
 			$dependencies,
 			$version,
 			true
 		);
 
 		wp_set_script_translations(
-			'ai-provider-for-open-webui-settings',
+			'obenweb-openwebui-provider-settings',
 			'ai-provider-for-open-webui',
-			AI_PROVIDER_FOR_OPENWEBUI_PLUGIN_DIR . 'languages'
+			OBENWEB_OPENWEBUI_PROVIDER_PLUGIN_DIR . 'languages'
 		);
 
 		wp_localize_script(
-			'ai-provider-for-open-webui-settings',
-			'aiProviderForOpenWebUISettings',
+			'obenweb-openwebui-provider-settings',
+			'obenwebOpenWebUIProviderSettings',
 			array(
 				'ajaxUrl'     => esc_url( admin_url( 'admin-ajax.php' ) . '?action=' . self::AJAX_ACTION . '&_wpnonce=' . wp_create_nonce( self::NONCE_ACTION ) ),
 				'modelFields' => array(
 					array(
 						'fieldId'            => self::OPTION_NAME . '-model',
-						'modelSuggestionsId' => 'ai-provider-for-open-webui-model-suggestions-all',
+						'modelSuggestionsId' => 'obenweb-openwebui-provider-model-suggestions-all',
 						'capability'         => 'any',
 					),
 				),

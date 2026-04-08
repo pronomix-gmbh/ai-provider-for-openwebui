@@ -176,7 +176,7 @@ class OpenWebUIModelMetadataDirectory extends AbstractApiBasedModelMetadataDirec
 
 		if ( function_exists( 'apply_filters' ) ) {
 			$supported = (bool) apply_filters(
-				'ai_provider_for_openwebui_model_supports_vision',
+				'obenweb_openwebui_provider_model_supports_vision',
 				$supported,
 				$model_entry,
 				$capabilities
@@ -204,7 +204,7 @@ class OpenWebUIModelMetadataDirectory extends AbstractApiBasedModelMetadataDirec
 
 		if ( function_exists( 'apply_filters' ) ) {
 			$supported = (bool) apply_filters(
-				'ai_provider_for_openwebui_model_supports_image_generation',
+				'obenweb_openwebui_provider_model_supports_image_generation',
 				$supported,
 				$model_id,
 				$model_entry,

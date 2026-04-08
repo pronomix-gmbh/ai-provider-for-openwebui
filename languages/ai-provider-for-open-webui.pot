@@ -14,17 +14,17 @@ msgstr ""
 "X-Domain: ai-provider-for-open-webui\n"
 
 #. translators: 1: Required PHP version, 2: Current PHP version
-#: plugin.php:67
+#: ai-provider-for-open-webui.php:67
 msgid "The Open WebUI Provider plugin requires PHP version %1$s or higher. You are running PHP version %2$s."
 msgstr ""
 
 #. translators: 1: Required WordPress version, 2: Current WordPress version
-#: plugin.php:99
+#: ai-provider-for-open-webui.php:99
 msgid "The Open WebUI Provider plugin requires WordPress version %1$s or higher. You are running WordPress version %2$s."
 msgstr ""
 
 #. translators: %s: composer install command
-#: plugin.php:153
+#: ai-provider-for-open-webui.php:153
 msgid "Your installation of the Open WebUI Provider plugin is incomplete. Please run %s."
 msgstr ""
 

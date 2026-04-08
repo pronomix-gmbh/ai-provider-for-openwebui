@@ -24,7 +24,7 @@
 	};
 
 	document.addEventListener( 'DOMContentLoaded', function () {
-		var settings = window.aiProviderForOpenWebUISettings;
+		var settings = window.obenwebOpenWebUIProviderSettings;
 		var status = document.getElementById( 'openwebui-model-status' );
 		var modelFieldConfigs = settings && Array.isArray( settings.modelFields ) ? settings.modelFields : [];
 		var modelFields = [];

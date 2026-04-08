@@ -187,7 +187,7 @@ class OpenWebUITextGenerationModel extends AbstractOpenAiCompatibleTextGeneratio
 
 		if ( function_exists( 'apply_filters' ) ) {
 			$instruction = (string) apply_filters(
-				'ai_provider_for_openwebui_prompt_constraints',
+				'obenweb_openwebui_provider_prompt_constraints',
 				$instruction,
 				$locale,
 				$config->getOutputMimeType(),
@@ -226,7 +226,7 @@ class OpenWebUITextGenerationModel extends AbstractOpenAiCompatibleTextGeneratio
 
 		if ( function_exists( 'apply_filters' ) ) {
 			$locale = (string) apply_filters(
-				'ai_provider_for_openwebui_response_locale',
+				'obenweb_openwebui_provider_response_locale',
 				$locale,
 				$messages,
 				$this->metadata()->getId()
@@ -885,7 +885,7 @@ class OpenWebUITextGenerationModel extends AbstractOpenAiCompatibleTextGeneratio
 
 		if ( function_exists( 'apply_filters' ) ) {
 			$max_length = (int) apply_filters(
-				'ai_provider_for_openwebui_alt_text_max_length',
+				'obenweb_openwebui_provider_alt_text_max_length',
 				$max_length,
 				$this->metadata()->getId()
 			);
@@ -910,7 +910,7 @@ class OpenWebUITextGenerationModel extends AbstractOpenAiCompatibleTextGeneratio
 
 		if ( function_exists( 'apply_filters' ) ) {
 			$max_words = (int) apply_filters(
-				'ai_provider_for_openwebui_excerpt_max_words',
+				'obenweb_openwebui_provider_excerpt_max_words',
 				$max_words,
 				$this->metadata()->getId()
 			);
