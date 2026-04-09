@@ -114,8 +114,8 @@ jobs:
             exit 1
           fi
 
-          HEADER_VERSION="$(awk -F': *' 'BEGIN{IGNORECASE=1} /^Version:/ {print $2; exit}' "$PLUGIN_FILE" | tr -d '\r')"
-          README_STABLE_TAG="$(awk -F': *' 'BEGIN{IGNORECASE=1} /^Stable tag:/ {print $2; exit}' "$README_FILE" | tr -d '\r')"
+          HEADER_VERSION="$(awk 'BEGIN{IGNORECASE=1} /^[[:space:]]*\\*?[[:space:]]*Version:[[:space:]]*/ {sub(/^[^:]*:[[:space:]]*/, "", $0); print; exit}' "$PLUGIN_FILE" | tr -d '\r')"
+          README_STABLE_TAG="$(awk 'BEGIN{IGNORECASE=1} /^[[:space:]]*Stable tag:[[:space:]]*/ {sub(/^[^:]*:[[:space:]]*/, "", $0); print; exit}' "$README_FILE" | tr -d '\r')"
 
           if [[ -z "$HEADER_VERSION" ]]; then
             echo "Fehler: Keine Version im Plugin-Header gefunden."
