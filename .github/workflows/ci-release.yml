@@ -81,3 +81,70 @@ jobs:
         with:
           files: dist/*.zip
           generate_release_notes: true
+
+  deploy-wordpress-org:
+    name: Deploy zu WordPress.org (SVN)
+    needs:
+      - test-build
+      - release
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    environment: deploy
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Versionen gegen Tag prüfen
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          PLUGIN_FILE="ai-provider-for-open-webui.php"
+          README_FILE="readme.txt"
+
+          if [[ ! -f "$PLUGIN_FILE" ]]; then
+            echo "Fehler: Plugin-Datei nicht gefunden: $PLUGIN_FILE"
+            exit 1
+          fi
+
+          if [[ ! -f "$README_FILE" ]]; then
+            echo "Fehler: readme.txt nicht gefunden"
+            exit 1
+          fi
+
+          HEADER_VERSION="$(awk -F': *' 'BEGIN{IGNORECASE=1} /^Version:/ {print $2; exit}' "$PLUGIN_FILE" | tr -d '\r')"
+          README_STABLE_TAG="$(awk -F': *' 'BEGIN{IGNORECASE=1} /^Stable tag:/ {print $2; exit}' "$README_FILE" | tr -d '\r')"
+
+          if [[ -z "$HEADER_VERSION" ]]; then
+            echo "Fehler: Keine Version im Plugin-Header gefunden."
+            exit 1
+          fi
+
+          if [[ -z "$README_STABLE_TAG" ]]; then
+            echo "Fehler: Kein Stable tag in readme.txt gefunden."
+            exit 1
+          fi
+
+          echo "Tag-Version:        $TAG_VERSION"
+          echo "Plugin-Header:      $HEADER_VERSION"
+          echo "readme Stable tag:  $README_STABLE_TAG"
+
+          if [[ "$HEADER_VERSION" != "$TAG_VERSION" ]]; then
+            echo "Fehler: Plugin-Header-Version passt nicht zum Tag."
+            exit 1
+          fi
+
+          if [[ "$README_STABLE_TAG" != "$TAG_VERSION" ]]; then
+            echo "Fehler: readme Stable tag passt nicht zum Tag."
+            exit 1
+          fi
+
+      - name: Deploy nach WordPress.org SVN
+        uses: 10up/action-wordpress-plugin-deploy@stable
+        with:
+          slug: ai-provider-for-open-webui
+        env:
+          SVN_USERNAME: ${{ secrets.SVN_USER }}
+          SVN_PASSWORD: ${{ secrets.SVN_PASS }}
