@@ -378,8 +378,7 @@ class OpenWebUISettings {
 
 		wp_set_script_translations(
 			'obenweb-openwebui-provider-settings',
-			'ai-provider-for-open-webui',
-			OBENWEB_OPENWEBUI_PROVIDER_PLUGIN_DIR . 'languages'
+			'ai-provider-for-open-webui'
 		);
 
 		wp_localize_script(

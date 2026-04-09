@@ -3,7 +3,7 @@ Contributors:      pronomix
 Tags:              ai, ai provider, wordpress ai, open webui, openwebui, llm, api, chatbot, content generation, pronomix
 Requires at least: 6.7
 Tested up to:      6.9
-Stable tag:        1.3.4
+Stable tag:        1.3.5
 Requires PHP:      7.4
 License:           GPL-2.0-or-later
 License URI:       https://www.gnu.org/licenses/gpl-2.0.html
@@ -113,6 +113,11 @@ Source and usage notes:
 * `third-party-notices.txt`
 
 == Changelog ==
+
+= 1.3.5 - 2026-04-09 =
+
+* Version auf 1.3.5 erhöht.
+* GitHub-Deploy für WordPress.org-Assets auf `assets/` konfiguriert.
 
 = 1.3.4 - 2026-04-09 =
 

@@ -102,3 +102,4 @@ jobs:
         env:
           SVN_USERNAME: ${{ secrets.SVN_USER }}
           SVN_PASSWORD: ${{ secrets.SVN_PASS }}
+          ASSETS_DIR: assets

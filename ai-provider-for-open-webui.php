@@ -6,7 +6,7 @@
  * Requires at least: 6.7
  * Requires PHP:      7.4
  * Requires Plugins:  ai
- * Version:           1.3.4
+ * Version:           1.3.5
  * Author:            pronomiX GmbH
  * Author URI:        https://www.pronomix.de
  * License:           GPL-2.0-or-later
@@ -151,6 +151,13 @@ function load(): void {
 
 	// Load the composer autoloader.
 	require_once OBENWEB_OPENWEBUI_PROVIDER_PLUGIN_DIR . 'vendor/autoload.php';
+
+	// Load translations from WordPress language packs or local /languages fallback.
+	load_plugin_textdomain(
+		'ai-provider-for-open-webui',
+		false,
+		dirname( plugin_basename( OBENWEB_OPENWEBUI_PROVIDER_PLUGIN_FILE ) ) . '/languages'
+	);
 
 	// Initialize the plugin.
 	$plugin = new Plugin();
